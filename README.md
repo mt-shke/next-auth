@@ -1,34 +1,212 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## NextAuth
 
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
+```js
+// npm i next
+// npm i next-auth
+// npm i bcryptjs
+// npm i mongoDb
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+<details>
+<summary>[...nextauth].js - lib/auth(hash) - lib/db</summary>
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+```js
+export default NextAuth({
+	session: {
+		jwt: true,
+	},
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+	providers: [
+		Providers.Credentials({
+			async authorize(credentials) {
+				const client = await connectToDatabase();
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+				const usersCollection = client.db().collection("users");
+				const user = await usersCollection.findOne({ email: credentials.email });
 
-## Learn More
+				if (!user) {
+					client.close();
+					throw new Error("No user found");
+				}
 
-To learn more about Next.js, take a look at the following resources:
+				const isValid = verifyPassword(credentials.password, user.password);
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+				if (!isValid) {
+					client.close();
+					throw new Error("Could not log you in!");
+				}
+				client.close();
+				return { email: user.email };
+			},
+		}),
+	],
+});
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```js
+export async function hashPassword(password) {
+	const hashedPassword = await hash(password, 12);
+	return hashedPassword;
+}
 
-## Deploy on Vercel
+export async function verifyPassword(password, hashedPassword) {
+	const isValid = await compare(password, hashedPassword);
+	return isValid;
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```js
+export const connectToDatabase = async () => {
+	const client = await MongoClient.connect(
+		"mongodb+srv://user:user@cluster0.chfbj.mongodb.net/project?retryWrites=true&w=majority"
+	);
+	return client;
+};
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+</details>
+
+<details>
+<summary>Register component</summary>
+
+```js
+async function handler(req, res) {
+	if (req.method !== "POST") return;
+	const data = req.body;
+	const { email, password } = data;
+
+	// Validation...
+	if (!email || !password || password.length < 6) {
+		res.status(422).json({ message: "Incorrect credentials" });
+	}
+	const client = await connectToDatabase();
+	const db = client.db();
+	const userExist = db.collection("users").findOne({ email: email });
+
+	if (userExist) {
+		res.status(422).json({ message: "User already exist" });
+		client.close();
+		return;
+	}
+
+	const hashedPassword = await hashPassword(password);
+
+	const result = await db.collection("users").insertOne({
+		email: email,
+		password: hashedPassword,
+	});
+
+	res.status(201).json({ message: "User created" });
+	client.close();
+}
+```
+
+</details>
+
+<details>
+<summary>signIn - Login form component</summary>
+
+```js
+async function createUser(email, password) {
+	const response = await fetch("/api/auth/signup", {
+		method: "POST",
+		body: JSON.stringify({ email, password }),
+		headers: {
+			"Content-Type": "application/json",
+		},
+	});
+
+	const data = await response.json();
+	if (!response.ok) {
+		throw new Error(data.message || "Something went wrong");
+	}
+	return data;
+}
+
+function AuthForm() {
+	const emailRef = useRef();
+	const passwordRef = useRef();
+	const [isLogin, setIsLogin] = useState(true);
+
+	function switchAuthModeHandler() {
+		setIsLogin((prevState) => !prevState);
+	}
+
+
+	async function submitHandler(event) {
+		try {
+			event.preventDefault();
+			const email = emailRef.current.value;
+			const password = passwordRef.current.value;
+			if (isLogin) {
+				const result = await signIn("credentials", {
+					redirect: false,
+					email: email,
+					password: password,
+				});
+
+				if (!result.error) {
+					// login logic
+				}
+			} else {
+				const response = await createUser(email, password);
+				console.log(response);
+			}
+		} catch (err) {
+			console.log(err);
+		}
+	}
+
+```
+
+</details>
+
+<details>
+<summary>useSession - session && conditionnal rendering</summary>
+
+```js
+	const [session, loading] = useSession();
+
+	return (
+					{!session && !loading && (
+						<li>
+							<Link href="/auth">Login</Link>
+						</li>
+					)}
+```
+
+</details>
+
+<details>
+<summary>Route protection</summary>
+
+```js
+
+function UserProfile() {
+	// Redirect away if NOT auth
+	// const [session, loading] = useSession();
+	// useSession's loading 's kinda buggy
+	// we create our own loading state
+	const [isLoading, setIsLoading] = useState(true);
+	// const [loadedSession, setLoadedSession] = useSession();
+
+	useEffect(() => {
+		getSession().then((session) => {
+			// setLoadedSession(session);
+			// setIsLoading(session);
+			if (!session) {
+				window.location.href = "/auth";
+			} else {
+				setIsLoading(false);
+			}
+		});
+	}, []);
+
+	if (isLoading) {
+		// own loading state to conditonnaly render messages
+		return <p className={classes.profile}>Loading...</p>;
+	}
+
+```
+
+</details>
