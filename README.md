@@ -8,7 +8,7 @@
 ```
 
 <details>
-<summary>[...nextauth].js - lib/auth(hash) - lib/db</summary>
+<summary>[...nextauth].js - Provider - lib/auth(hash) - lib/db</summary>
 
 ```js
 export default NextAuth({
@@ -41,6 +41,20 @@ export default NextAuth({
 		}),
 	],
 });
+```
+
+```js
+function MyApp({ Component, pageProps }) {
+	return (
+		// Provider =>  set session data to childs components
+		// Avoid more auth requests && better performance
+		<Provider session={pageProps.session}>
+			<Layout>
+				<Component {...pageProps} />
+			</Layout>
+		</Provider>
+	);
+}
 ```
 
 ```js
@@ -177,11 +191,15 @@ function AuthForm() {
 
 </details>
 
+## Route Protection
+
 <details>
-<summary>Route protection</summary>
+<summary>Client side</summary>
+
+profile page
 
 ```js
-
+// redirect if !session + set loading during session search
 function UserProfile() {
 	// Redirect away if NOT auth
 	// const [session, loading] = useSession();
@@ -207,6 +225,58 @@ function UserProfile() {
 		return <p className={classes.profile}>Loading...</p>;
 	}
 
+```
+
+auth/login page
+
+```js
+// redirect if session
+function AuthPage() {
+	const [isLoading, setIsLoading] = useState(true);
+	const router = useRouter();
+
+	useEffect(() => {
+		getSession().then((session) => {
+			if (session) {
+				router.replace("/");
+			} else {
+				setIsLoading(false);
+			}
+		});
+	}, [router]);
+
+	if (isLoading) {
+		return <p>Loading...</p>;
+	}
+
+	return <AuthForm />;
+}
+```
+
+</details>
+
+<details>
+<summary>Server side</summary>
+
+profil page - server side getSession
+
+```js
+function ProfilePage() {
+	return <UserProfile />;
+}
+
+export async function getServerSideProps(context) {
+	const session = await getSession({ req: context.req });
+
+	if (!session) {
+		return { redirect: { destination: "/auth", permanent: false } };
+	}
+	return {
+		props: { session },
+	};
+}
+
+export default ProfilePage;
 ```
 
 </details>
