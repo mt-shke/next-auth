@@ -1,11 +1,19 @@
-## NextAuth
+# NextAuth
 
 ```js
-// npm i next
-// npm i next-auth
-// npm i bcryptjs
-// npm i mongoDb
+// npx create-next-app
+// npm i next-auth bcryptjs mongoDb
+
+// Set lib => connectDb, bcryptjsHash/Compare();
+// Providers => [...nextauth].js, _app.js =>  <Providers>...</Providers>
+
+// Api => signUp; Client => request Api route
+
+// Manage active session - Client/Server side
+// Protecting route - Client/Server side
 ```
+
+## Install & Path
 
 <details>
 <summary>[...nextauth].js - Provider - lib/auth(hash) - lib/db</summary>
@@ -80,8 +88,10 @@ export const connectToDatabase = async () => {
 
 </details>
 
+## API & Client request => Create
+
 <details>
-<summary>Register component</summary>
+<summary>API - signUp</summary>
 
 ```js
 async function handler(req, res) {
@@ -118,7 +128,7 @@ async function handler(req, res) {
 </details>
 
 <details>
-<summary>signIn - Login form component</summary>
+<summary>Client - signUp</summary>
 
 ```js
 async function createUser(email, password) {
@@ -175,6 +185,8 @@ function AuthForm() {
 
 </details>
 
+## Session management & Route protecting
+
 <details>
 <summary>useSession - session && conditionnal rendering</summary>
 
@@ -190,8 +202,6 @@ function AuthForm() {
 ```
 
 </details>
-
-## Route Protection
 
 <details>
 <summary>Client side</summary>
@@ -280,6 +290,8 @@ export default ProfilePage;
 ```
 
 </details>
+
+## API => Update
 
 <details>
 <summary>Api route - changePassword</summary>

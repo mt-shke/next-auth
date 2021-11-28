@@ -13,7 +13,6 @@ async function handler(req, res) {
 
 	const client = await connectToDatabase();
 	const db = client.db();
-
 	const userExist = await db.collection("users").findOne({ email: email });
 
 	if (userExist) {
