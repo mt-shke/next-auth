@@ -99,18 +99,21 @@ export const connectToDatabase = async () => {
 <summary>API - signUp</summary>
 
 ```js
-async function handler(req, res) {
+import { connectDB } from "../../../lib/db";
+import { hashPassword } from "../../../lib/hash";
+
+export default async function handler(req, res) {
 	if (req.method !== "POST") return;
 	const data = req.body;
-	const { email, password } = data;
+	const { email, userName, password } = data;
 
 	// Validation...
 	if (!email || !password || password.length < 6) {
 		res.status(422).json({ message: "Incorrect credentials" });
 	}
-	const client = await connectToDatabase();
+	const client = await connectDB();
 	const db = client.db();
-	const userExist = db.collection("users").findOne({ email: email });
+	const userExist = await db.collection("users").findOne({ email: email });
 
 	if (userExist) {
 		res.status(422).json({ message: "User already exist" });
@@ -122,6 +125,7 @@ async function handler(req, res) {
 
 	const result = await db.collection("users").insertOne({
 		email: email,
+		userName: userName,
 		password: hashedPassword,
 	});
 
@@ -342,6 +346,47 @@ await function handler(req, res) {
 	client.close();
 	res.status(200).json({ message: "Password updated" });
 };
+```
+
+</details>
+
+<details>
+<summary>logIn</summary>
+
+```js
+import { signIn } from "next-auth/client";
+
+const buttonFunction = async() => {
+	// ...
+		const result = await signIn("credentials", {
+					redirect: false,
+					email: email,
+					password: password,
+				});
+
+				if (!result.error) {
+					// login logic
+					router.replace("/profile");
+				}
+
+```
+
+</details>
+<details>
+<summary>signOut</summary>
+
+```js
+import { signOut, useSession } from "next-auth/client";
+import Link from "next/link";
+import classes from "./main-navigation.module.css";
+
+function MainNavigation() {
+	const [session, loading] = useSession();
+
+	const logoutHandler = () => {
+		signOut();
+	};
+
 ```
 
 </details>

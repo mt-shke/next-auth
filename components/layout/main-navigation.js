@@ -5,9 +5,6 @@ import classes from "./main-navigation.module.css";
 function MainNavigation() {
 	const [session, loading] = useSession();
 
-	console.log(loading);
-	console.log(session);
-
 	const logoutHandler = () => {
 		signOut();
 	};
